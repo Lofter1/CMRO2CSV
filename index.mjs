@@ -35,17 +35,30 @@ const argv = yargs(process.argv.slice(2))
         type: 'number',
         description: 'Order listing parameter from URL (1 = 616, 2 = Ultimate, 9 = Expanded, 12 = MC2, 15 = 2099)',
     })
+    .option('include_url', {
+        type: 'boolean',
+        description: 'Include URL in result',
+        default: false,
+    })
+    .option('delay', {
+        type: 'number',
+        description: 'Delay between requests in ms (1000 = 1s)',
+        default: 2000,
+    })
     .help()
     .parse();
+
+const BASE_URL = 'https://cmro.travis-starnes.com/';
+
 
 // Set the default for outputFile dynamically if not provided
 if (!argv.outputFile) {
     argv.outputFile = `${argv.characterId}.csv`;
 }
 
-const { challengeWaitTime, headless, outputFile, characterId } = argv;
+const { challengeWaitTime, headless, outputFile, characterId, includeUrl, delay } = argv;
 
-let characterLink = `https://cmro.travis-starnes.com/character_details.php?character=${characterId}`;
+let characterLink = `${BASE_URL}character_details.php?character=${characterId}`;
 if (argv.order_listing) {
     characterLink += `&order_listing=${argv.order_listing}`;
 }
@@ -90,6 +103,10 @@ async function scrapeWebsite() {
             await navigateTo(page, `${characterLink}&page=${currentPage}`);
             await writeCSVFile(await scrapeListing(page), outputFile);
             pageProgressBar.update(currentPage);
+
+            if (currentPage < listPageCount) {
+                await new Promise(resolve => setTimeout(resolve, delay));
+            }
         }
 
         pageProgressBar.stop();
@@ -101,34 +118,47 @@ async function scrapeWebsite() {
 
         console.log("\nFinished");
     } catch (error) {
-        console.log('Error during scraping:', error);
+        console.log('\nError during scraping:', error);
+        throw error;
     } finally {
         await browser.close();
     }
 }
-
-async function scrapeListing(page) {
+async function scrapeListing(page, includeUrl = false) {
     const elementCount = (await page.$$('.list_detail_body')).length;
     const list = [];
 
     for (let i = 0; i < elementCount; i++) {
-
         const updatedElements = await page.$$('.list_detail_body');
 
-        await updatedElements[i].$eval('.list_detail_button_block a img', el => el.click());
-        await page.waitForNavigation({ waitUntil: 'networkidle0' });
-        await bypassCloudflare(page)
+        const readingOrder = await updatedElements[i]
+            .$eval('.list_detail_order_block strong', el => el.innerText.replace(/,/g, ''));
+        let title = await updatedElements[i]
+            .$eval('.list_detail_title_block', el => el.innerText.trim());
 
-        const heading = await page.$eval('h1', el => el.innerText);
-        const comicData = splitHeading(heading);
-        comicData.url = page.url();
-        list.push(comicData);
+        let url = null;
+        if (includeUrl) {
+            url = await updatedElements[i].$eval('.list_detail_button_block a', el => el.getAttribute('href'));
+            url = BASE_URL + url;
+        }
 
-        await page.goBack({ waitUntil: 'networkidle2' });
+        if (title.endsWith('...')) {
+            const detailLink = await updatedElements[i].$eval('.list_detail_button_block a', el => el.href);
+            await page.goto(detailLink, { waitUntil: 'networkidle0' });
+            await bypassCloudflare(page);
+
+            const fullHeading = await page.$eval('h1', el => el.innerText);
+            title = fullHeading.trim();
+
+            await page.goBack({ waitUntil: 'networkidle2' });
+        }
+
+        list.push({ readingOrderPosition: readingOrder, title, url });
     }
 
-    return list
+    return list;
 }
+
 
 function splitHeading(inputString) {
     const separatorIndex = inputString.indexOf(':');
@@ -190,21 +220,22 @@ async function writeCSVFile(arrayData, filePath) {
 
 let retry = false;
 
-    while (true) {
-        try {
-            await scrapeWebsite();
-            break; // success -> break out of loop
-        } catch (err) {
-            console.error("Fatal error:", err);
+while (true) {
+    try {
+        await scrapeWebsite();
+        break; // success -> break out of loop
+    } catch (err) {
+        console.error("Fatal error:", err);
 
-            if (retry) {
-                console.error("Second failure. Exiting...");
-                exit(1);
-            } else {
-                retry = true;
-                console.log("Retrying in 5 minutes...");
-                await new Promise(res => setTimeout(res, 5 * 60 * 1000));
-            }
+        if (retry) {
+            console.error("Second failure. Exiting...");
+            exit(1);
+        } else {
+            retry = true;
+            console.log("Retrying in 5 minutes...");
+            await new Promise(res => setTimeout(res, 5 * 60 * 1000));
         }
     }
+}
+
 exit();
