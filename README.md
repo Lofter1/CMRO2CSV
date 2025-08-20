@@ -3,11 +3,9 @@ Scrape CMRO and save in CSV
 
 ## Usage
 
+### Scraping
 ```sh
-npx cmro2csv --characterId=<character-id>
-```
-```sh
-npx cmro2csv --help
+npx cmro2csv scrape <character id>
 ```
 
 The character ID can be found in the CMRO URL 
@@ -18,4 +16,9 @@ https://cmro.travis-starnes.com/character_details.php?character=26106&order_list
 
 ```
 character=26106
+```
+
+### Merge CSVs
+```sh
+npx cmro2csv merge <files ...> -o <output csv file>
 ```
