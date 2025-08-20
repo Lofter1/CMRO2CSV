@@ -90,7 +90,12 @@ yargs(hideBin(process.argv))
           description:
             "Column mappings in form OutCol=InCol or OutCol=InCol:Regex",
           demandOption: true,
-        }),
+        })
+      .option("merge", {
+        type: "string",
+        choices: ["A-Story", "Position"],
+        description: "Optional merge option to combine story rows",
+      }),
     async (args) => {
       await convertCommand(args);
     }
