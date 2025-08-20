@@ -4,6 +4,7 @@ import yargs from "yargs";
 import { hideBin } from "yargs/helpers";
 import { scrapeCommand } from "./scrape.mjs";
 import { mergeCommand } from "./merge.mjs";
+import { convertCommand } from "./convert.mjs";
 
 // Yargs CLI Setup
 yargs(hideBin(process.argv))
@@ -70,6 +71,23 @@ yargs(hideBin(process.argv))
     },
     async (args) => {
       await mergeCommand(args);
+    }
+  )
+  .command(
+    "convert <input>",
+    "Convert a CSV into a different format with regex-based mappings",
+    (y) =>
+      y
+        .positional("input", { type: "string" })
+        .option("output", { alias: "o", type: "string", demandOption: true })
+        .option("map", {
+          type: "array",
+          description:
+            "Column mappings in form OutCol=InCol or OutCol=InCol:Regex",
+          demandOption: true,
+        }),
+    async (args) => {
+      await convertCommand(args);
     }
   )
   .demandCommand(1, "You need to specify a subcommand (scrape or merge)")

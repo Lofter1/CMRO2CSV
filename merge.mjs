@@ -39,5 +39,5 @@ async function mergeCSVs(files, output) {
     merged.forEach(row => csvStream.write(row));
     csvStream.end();
 
-    console.log(`✅ Merged ${files.length} files into ${output}. Rows: ${merged.length}`);
+    console.log(`Merged ${files.length} files into ${output}. Rows: ${merged.length}`);
 }

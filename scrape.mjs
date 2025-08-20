@@ -169,7 +169,7 @@ async function scrapeListing(page, includeUrl, challengeWaitTime) {
       await bypassCloudflare(page, challengeWaitTime);
 
       const fullHeading = await page.$eval("h1", (el) => el.innerText);
-      title = fullHeading.trim();
+      title = splitHeading(fullHeading).title.trim();
 
       await page.goBack({ waitUntil: "networkidle2" });
     }
@@ -196,4 +196,12 @@ async function bypassCloudflare(page, challengeWaitTime) {
 async function navigateTo(page, link, challengeWaitTime) {
   await page.goto(link, { waitUntil: "networkidle0" });
   await bypassCloudflare(page, challengeWaitTime);
+}
+
+function splitHeading(inputString) {
+    const separatorIndex = inputString.indexOf(':');
+
+    const firstPart = inputString.substring(0, separatorIndex).trim();
+    const secondPart = inputString.substring(separatorIndex + 1).trim();
+    return { readingOrderPosition: firstPart, title: secondPart }
 }
