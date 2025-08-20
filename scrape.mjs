@@ -15,6 +15,7 @@ export async function scrapeCommand({
   order_listing,
   include_url,
   delay,
+  includeCoverDate,
 }) {
   puppeteer.use(stealthPlugin());
 
@@ -56,6 +57,7 @@ export async function scrapeCommand({
         progressFile,
         setCurrentPage: (p) => (currentPage = p),
         setIsInProgress: (val) => (isInProgess = val),
+        includeCoverDate,
       });
       break;
     } catch (err) {
@@ -85,6 +87,7 @@ async function scrapeWebsite({
   progressFile,
   setCurrentPage,
   setIsInProgress,
+  includeCoverDate,
 }) {
   const browser = await puppeteer.launch({ headless });
   const page = await browser.newPage();
@@ -111,7 +114,12 @@ async function scrapeWebsite({
         challengeWaitTime
       );
       await writeCSVFile(
-        await scrapeListing(page, include_url, challengeWaitTime),
+        await scrapeListing(
+          page,
+          include_url,
+          includeCoverDate,
+          challengeWaitTime
+        ),
         outputFile
       );
       pageProgressBar.update(currentPage);
@@ -135,7 +143,12 @@ async function scrapeWebsite({
   }
 }
 
-async function scrapeListing(page, includeUrl, challengeWaitTime) {
+async function scrapeListing(
+  page,
+  includeUrl,
+  includeCoverDate,
+  challengeWaitTime
+) {
   const elementCount = (await page.$$(".list_detail_body")).length;
   const list = [];
 
@@ -160,7 +173,7 @@ async function scrapeListing(page, includeUrl, challengeWaitTime) {
       url = BASE_URL + url;
     }
 
-    if (title.endsWith("...")) {
+    if (title.endsWith("...") || includeCoverDate) {
       const detailLink = await updatedElements[i].$eval(
         ".list_detail_button_block a",
         (el) => el.href
@@ -170,6 +183,23 @@ async function scrapeListing(page, includeUrl, challengeWaitTime) {
 
       const fullHeading = await page.$eval("h1", (el) => el.innerText);
       title = splitHeading(fullHeading).title.trim();
+
+      if (includeCoverDate) {
+        try {
+          const dateText = await page.$eval(
+            "span.issue_detail_section:has-text('Cover Date') + span",
+            (el) => el.innerText.trim()
+          );
+          if (dateText) {
+            const [monthName, yearStr] = dateText.split(" ");
+            const month = new Date(`${monthName} 1, 2000`).getMonth() + 1; // Converts month name to number
+            coverMonth = month;
+            coverYear = parseInt(yearStr, 10);
+          }
+        } catch (err) {
+          // Ignore if no cover date
+        }
+      }
 
       await page.goBack({ waitUntil: "networkidle2" });
     }
@@ -199,9 +229,9 @@ async function navigateTo(page, link, challengeWaitTime) {
 }
 
 function splitHeading(inputString) {
-    const separatorIndex = inputString.indexOf(':');
+  const separatorIndex = inputString.indexOf(":");
 
-    const firstPart = inputString.substring(0, separatorIndex).trim();
-    const secondPart = inputString.substring(separatorIndex + 1).trim();
-    return { readingOrderPosition: firstPart, title: secondPart }
+  const firstPart = inputString.substring(0, separatorIndex).trim();
+  const secondPart = inputString.substring(separatorIndex + 1).trim();
+  return { readingOrderPosition: firstPart, title: secondPart };
 }

@@ -47,6 +47,11 @@ yargs(hideBin(process.argv))
           type: "number",
           describe: "Delay between requests in ms (1000 = 1s)",
           default: 2000,
+        })
+        .option("includeCoverDate",{
+          type: "boolean",
+          describe: "Scrape for and include cover date in CSV (increases scrape time)",
+          default: false,
         });
     },
     async (args) => {
