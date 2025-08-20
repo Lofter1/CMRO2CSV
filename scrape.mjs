@@ -173,6 +173,9 @@ async function scrapeListing(
       url = BASE_URL + url;
     }
 
+    let coverMonth = null;
+    let coverYear = null;
+
     if (title.endsWith("...") || includeCoverDate) {
       const detailLink = await updatedElements[i].$eval(
         ".list_detail_button_block a",
@@ -186,10 +189,16 @@ async function scrapeListing(
 
       if (includeCoverDate) {
         try {
-          const dateText = await page.$eval(
-            "span.issue_detail_section:has-text('Cover Date') + span",
-            (el) => el.innerText.trim()
+          const dateText = await page.$$eval(
+            "span.issue_detail_section",
+            (els) => {
+              const label = els.find((el) =>
+                el.textContent.trim().startsWith("Cover Date")
+              );
+              return label?.nextElementSibling?.textContent.trim() || null;
+            }
           );
+
           if (dateText) {
             const [monthName, yearStr] = dateText.split(" ");
             const month = new Date(`${monthName} 1, 2000`).getMonth() + 1; // Converts month name to number
@@ -204,7 +213,14 @@ async function scrapeListing(
       await page.goBack({ waitUntil: "networkidle2" });
     }
 
-    list.push({ readingOrderPosition: readingOrder, title, url });
+    const row = { readingOrderPosition: readingOrder, title };
+    if (includeUrl) row.url = url;
+    if (includeCoverDate) {
+      row.coverMonth = coverMonth;
+      row.coverYear = coverYear;
+    }
+
+    list.push(row);
   }
 
   return list;
