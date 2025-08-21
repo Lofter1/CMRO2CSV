@@ -73,8 +73,6 @@ export async function scrapeCommand({
       }
     }
   }
-
-  exit();
 }
 
 async function scrapeWebsite({

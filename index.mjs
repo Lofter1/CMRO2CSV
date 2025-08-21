@@ -9,13 +9,14 @@ import { convertCommand } from "./convert.mjs";
 // Yargs CLI Setup
 yargs(hideBin(process.argv))
   .command(
-    "scrape <characterId>",
-    "Scrape a character reading order",
+    "scrape <characterIds..>",
+    "Scrape one or more characters reading order",
     (y) => {
       return y
-        .positional("characterId", {
+        .positional("characterIds", {
           type: "number",
-          describe: "ID of the character to scrape",
+          describe: "ID(s) of the character(s) to scrape",
+          array: true,
           demandOption: true,
         })
         .option("challengeWaitTime", {
@@ -31,7 +32,8 @@ yargs(hideBin(process.argv))
         .option("outputFile", {
           alias: "o",
           type: "string",
-          describe: "Output CSV file name",
+          describe:
+            "Output CSV file name (ignored if multiple characters are given)",
         })
         .option("order_listing", {
           type: "number",
@@ -48,14 +50,18 @@ yargs(hideBin(process.argv))
           describe: "Delay between requests in ms (1000 = 1s)",
           default: 2000,
         })
-        .option("includeCoverDate",{
+        .option("includeCoverDate", {
           type: "boolean",
-          describe: "Scrape for and include cover date in CSV (increases scrape time)",
+          describe:
+            "Scrape for and include cover date in CSV (increases scrape time)",
           default: false,
         });
     },
     async (args) => {
-      await scrapeCommand(args);
+      for (const characterId of args.characterIds) {
+        console.log(characterId);
+        await scrapeCommand({ ...args, characterId });
+      }
     }
   )
   .command(
@@ -91,11 +97,11 @@ yargs(hideBin(process.argv))
             "Column mappings in form OutCol=InCol or OutCol=InCol:Regex",
           demandOption: true,
         })
-      .option("merge", {
-        type: "string",
-        choices: ["A-Story", "Position"],
-        description: "Optional merge option to combine story rows",
-      }),
+        .option("merge", {
+          type: "string",
+          choices: ["A-Story", "Position"],
+          description: "Optional merge option to combine story rows",
+        }),
     async (args) => {
       await convertCommand(args);
     }
