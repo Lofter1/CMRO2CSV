@@ -59,6 +59,7 @@ export async function scrapeCommand({
         setIsInProgress: (val) => (isInProgess = val),
         includeCoverDate,
       });
+      retry = false;
       break;
     } catch (err) {
       console.error("Fatal error:", err);
